@@ -6,6 +6,7 @@ import { VectorTile } from "@mapbox/vector-tile";
 import Protobuf from "pbf";
 // @ts-ignore
 import { PMTiles } from "pmtiles";
+import lineclip from 'lineclip';
 
 export enum GeomType {
   Point = 1,
@@ -95,21 +96,48 @@ function parseTile(
     let features = [];
     let layer = value as any;
     for (let i = 0; i < layer.length; i++) {
-      let result = loadGeomAndBbox(
+      let loaded = loadGeomAndBbox(
         layer.feature(i)._pbf,
         layer.feature(i)._geometry,
         tileSize / layer.extent
       );
+
+
       let numVertices = 0;
-      for (let part of result.geom) numVertices += part.length;
-      features.push({
-        id: layer.feature(i).id,
-        geomType: layer.feature(i).type,
-        geom: result.geom,
-        numVertices: numVertices,
-        bbox: result.bbox,
-        props: layer.feature(i).properties,
-      });
+      for (let part of loaded.geom) numVertices += part.length;
+
+      var geom3 = loaded.geom
+      if (numVertices > 3000 && layer.feature(i).type == 3) {
+
+        newPoly = []
+        for (let ring of loaded.geom) {
+          let newRing = []
+          for (let pt of ring) {
+            newRing.push([pt.x,pt.y])
+          }
+          let clippedRing = lineclip(newRing,[-2000,-2000,1000,1000]);
+          for (r of clippedRing) {
+            let newRing = []
+            for (let pt of r) {
+              newRing.push(new Point(pt[0],pt[1]))
+            }
+            newPoly.push(newRing)
+          }
+        }
+        // console.log(newPoly)
+
+
+
+        features.push({
+          id: layer.feature(i).id,
+          geomType: layer.feature(i).type,
+          geom:newPoly,
+          numVertices: numVertices,
+          bbox: loaded.bbox,
+          props: layer.feature(i).properties,
+        });
+
+      }
     }
     result.set(key, features);
   }
