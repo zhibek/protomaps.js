@@ -105,13 +105,12 @@ function parseTile(
       let numVertices = 0;
       for (let part of result.geom) numVertices += part.length;
 
-      let LIMIT = 5400;
+      let LIMIT = 5000;
       var split:Point[][];
       if (numVertices > LIMIT && layer.feature(i).type != GeomType.Point) {
-        console.log(key);
         if (layer.feature(i).type == GeomType.Line) {
           split = splitMultiLineString(result.geom,LIMIT);
-        } else if (layer.feature(i).type == GeomType.Polygon) {
+        } else { // is polygon
           split = splitMultiPolygon(result.geom,LIMIT); 
         }
 
