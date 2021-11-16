@@ -121,6 +121,7 @@ const simplifyRing = (ring:number[][],pointsToKeep:number) => {
     var maxArea = 0;
 
     let heap = minHeap();
+    var triangle;
 
     let triangles = [];
     for (var i = 1, n = ring.length - 1; i < n; ++i) {
