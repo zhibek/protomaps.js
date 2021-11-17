@@ -80,6 +80,17 @@ const leafletLayer = (options: any): any => {
       this.tasks = options.tasks || [];
       let cache = new TileCache(source, (256 * 1) << this.levelDiff);
       this.view = new View(cache, maxDataZoom, this.levelDiff);
+
+      let cache2 = new TileCache(
+        new PmtilesSource(
+          "https://protomaps-static.sfo3.digitaloceanspaces.com/FIRESTAT_YRLY.pmtiles",
+          true
+        ),
+        (256 * 1) << this.levelDiff
+      );
+      this.view2 = new View(cache2, 6, this.levelDiff);
+
+
       this.debug = options.debug;
       let scratch = document.createElement("canvas").getContext("2d");
       this.scratch = scratch;
@@ -120,13 +131,23 @@ const leafletLayer = (options: any): any => {
       done = () => {}
     ) {
       this.lastRequestedZ = coords.z;
-      var prepared_tile;
+      var prepared_tile, prepared_tile2;
       try {
         prepared_tile = await this.view.getDisplayTile(coords);
       } catch (e) {
         if ((e as any).name == "AbortError") return;
         else throw e;
       }
+
+      try {
+        prepared_tile2 = await this.view2.getDisplayTile(coords);
+      } catch(e) {
+
+      }
+
+      let prepared_tilemap = new Map();
+      prepared_tilemap.set("",prepared_tile);
+      prepared_tilemap.set("fires",prepared_tile2);
 
       if (element.key != key) return;
       if (this.lastRequestedZ !== coords.z) return;
@@ -191,7 +212,7 @@ const leafletLayer = (options: any): any => {
       } else {
         painting_time = painter(
           ctx,
-          [prepared_tile],
+          [prepared_tilemap],
           label_data,
           this.paint_rules,
           bbox,

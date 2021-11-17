@@ -313,6 +313,11 @@ export const paintRules = (
         fill: params.mask,
       }),
     },
+    {
+      dataSource: "fires",
+      dataLayer: "fires",
+      symbolizer: new CircleSymbolizer({fill:"#ddd"})
+    }
   ];
 };
 

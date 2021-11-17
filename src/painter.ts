@@ -132,7 +132,7 @@ export function xray(
 
 export function painter(
   ctx: any,
-  prepared_tiles: PreparedTile[],
+  prepared_tilemaps: Map<string,PreparedTile>[],
   label_data: Index,
   rules: Rule[],
   bbox: Bbox,
@@ -144,7 +144,8 @@ export function painter(
   ctx.save();
   ctx.miterLimit = 2;
 
-  for (var prepared_tile of prepared_tiles) {
+  for (var prepared_tilemap of prepared_tilemaps) {
+    let prepared_tile = prepared_tilemap.get("")!;
     let po = prepared_tile.origin;
     let ps = prepared_tile.scale;
     let dim = prepared_tile.dim;
@@ -168,7 +169,7 @@ export function painter(
     for (var rule of rules) {
       if (rule.minzoom && prepared_tile.z < rule.minzoom) continue;
       if (rule.maxzoom && prepared_tile.z > rule.maxzoom) continue;
-      var layer = prepared_tile.data.get(rule.dataLayer);
+      var layer = prepared_tilemap.get(rule.dataSource || "").data.get(rule.dataLayer);
       if (layer === undefined) continue;
       if (rule.symbolizer.before) rule.symbolizer.before(ctx, prepared_tile.z);
 
