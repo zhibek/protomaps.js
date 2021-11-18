@@ -314,9 +314,14 @@ export const paintRules = (
       }),
     },
     {
+      dataSource: "zcta",
+      dataLayer: "zcta",
+      symbolizer: new PolygonSymbolizer({fill:"blue"})
+    },
+    {
       dataSource: "fires",
       dataLayer: "fires",
-      symbolizer: new CircleSymbolizer({fill:"#ddd"})
+      symbolizer: new CircleSymbolizer({fill:"red"})
     }
   ];
 };

@@ -83,12 +83,21 @@ const leafletLayer = (options: any): any => {
 
       let cache2 = new TileCache(
         new PmtilesSource(
-          "https://protomaps-static.sfo3.digitaloceanspaces.com/FIRESTAT_YRLY.pmtiles",
+          "https://storage.googleapis.com/protomaps-test/FIRESTAT_YRLY.pmtiles",
           true
         ),
         (256 * 1) << this.levelDiff
       );
       this.view2 = new View(cache2, 6, this.levelDiff);
+
+      let cache3 = new TileCache(
+        new PmtilesSource(
+          "https://storage.googleapis.com/protomaps-test/cb_2018_us_zcta510_500k_coalesced.pmtiles",
+          true
+        ),
+        (256 * 1) << this.levelDiff
+      );
+      this.view3 = new View(cache3, 6, this.levelDiff);
 
 
       this.debug = options.debug;
@@ -131,23 +140,33 @@ const leafletLayer = (options: any): any => {
       done = () => {}
     ) {
       this.lastRequestedZ = coords.z;
-      var prepared_tile, prepared_tile2;
-      try {
-        prepared_tile = await this.view.getDisplayTile(coords);
-      } catch (e) {
-        if ((e as any).name == "AbortError") return;
-        else throw e;
-      }
+      // try {
+      //   prepared_tile = await this.view.getDisplayTile(coords);
+      // } catch (e) {
+      //   if ((e as any).name == "AbortError") return;
+      //   else throw e;
+      // }
 
-      try {
-        prepared_tile2 = await this.view2.getDisplayTile(coords);
-      } catch(e) {
+      // try {
+      //   prepared_tile2 = await this.view2.getDisplayTile(coords);
+      // } catch(e) {
 
-      }
+      // }
+
+      let x = await Promise.all([this.view.getDisplayTile(coords),this.view2.getDisplayTile(coords),this.view3.getDisplayTile(coords)].map(reflect))
+
+      let prepared_tile = x[0].value;
+      let prepared_tile2 = x[1].value;
+      let prepared_tile3 = x[2].value;
+
+      // let prepared_tile = await this.view.getDisplayTile(coords);
+      // let prepared_tile2 = await this.view2.getDisplayTile(coords);
+      // let prepared_tile3 = await this.view3.getDisplayTile(coords);
 
       let prepared_tilemap = new Map();
       prepared_tilemap.set("",prepared_tile);
-      prepared_tilemap.set("fires",prepared_tile2);
+      if (prepared_tile2) prepared_tilemap.set("fires",prepared_tile2);
+      if (prepared_tile3) prepared_tilemap.set("zcta",prepared_tile3);
 
       if (element.key != key) return;
       if (this.lastRequestedZ !== coords.z) return;

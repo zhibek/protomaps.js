@@ -291,6 +291,7 @@ export class Labeler {
 
 
       let pt = prepared_tilemap.get(rule.dataSource || "");
+      if (!pt) continue;
       let key = toIndex(pt.data_tile);
 
       let layer = pt.data.get(rule.dataLayer);
@@ -414,7 +415,7 @@ export class Labeler {
       return 0;
     } else {
       let timing = this.layout(prepared_tilemap);
-      this.pruneCache(prepared_tile);
+      // this.pruneCache(prepared_tile);
       return timing;
     }
   }

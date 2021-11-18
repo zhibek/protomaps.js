@@ -166,6 +166,7 @@ export function painter(
       if (rule.minzoom && prepared_tile.z < rule.minzoom) continue;
       if (rule.maxzoom && prepared_tile.z > rule.maxzoom) continue;
       let prepared_tile = prepared_tilemap.get(rule.dataSource || "");
+      if (!prepared_tile) continue;
       var layer = prepared_tile.data.get(rule.dataLayer);
       if (layer === undefined) continue;
       if (rule.symbolizer.before) rule.symbolizer.before(ctx, prepared_tile.z);
