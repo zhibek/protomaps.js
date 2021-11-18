@@ -541,5 +541,13 @@ export const labelRules = (
         ),
       ]),
     },
+    {
+      dataSource: "fires",
+      dataLayer: "fires",
+      symbolizer: new OffsetTextSymbolizer({
+        label_props: ["FIRE_NAME"],
+        fill: "red",
+      })
+    }
   ];
 };

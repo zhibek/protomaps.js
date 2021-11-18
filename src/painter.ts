@@ -19,6 +19,7 @@ export interface Rule {
   id?: string;
   minzoom?: number;
   maxzoom?: number;
+  dataSource?: string;
   dataLayer: string;
   symbolizer: PaintSymbolizer;
   filter?: Filter;

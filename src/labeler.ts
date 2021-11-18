@@ -42,6 +42,7 @@ export interface LabelRule {
   id?: string;
   minzoom?: number;
   maxzoom?: number;
+  dataSource?: string;
   dataLayer: string;
   symbolizer: LabelSymbolizer;
   filter?: Filter;
@@ -279,15 +280,19 @@ export class Labeler {
     this.maxLabeledTiles = maxLabeledTiles;
   }
 
-  private layout(pt: PreparedTile): number {
+  private layout(prepared_tilemap: map<string,PreparedTile>): number {
     let start = performance.now();
-    let key = toIndex(pt.data_tile);
 
     let tiles_invalidated = new Set<string>();
     for (let [order, rule] of this.labelRules.entries()) {
       if (rule.visible == false) continue;
       if (rule.minzoom && this.z < rule.minzoom) continue;
       if (rule.maxzoom && this.z > rule.maxzoom) continue;
+
+
+      let pt = prepared_tilemap.get(rule.dataSource || "");
+      let key = toIndex(pt.data_tile);
+
       let layer = pt.data.get(rule.dataLayer);
       if (layer === undefined) continue;
 
@@ -401,12 +406,14 @@ export class Labeler {
     }
   }
 
-  public add(prepared_tile: PreparedTile): number {
+  public add(prepared_tilemap: Map<string,PreparedTile>): number {
+    let prepared_tile = prepared_tilemap.get("");
     let idx = toIndex(prepared_tile.data_tile);
+
     if (this.index.has(idx)) {
       return 0;
     } else {
-      let timing = this.layout(prepared_tile);
+      let timing = this.layout(prepared_tilemap);
       this.pruneCache(prepared_tile);
       return timing;
     }
@@ -433,10 +440,11 @@ export class Labelers {
     this.callback = callback;
   }
 
-  public add(prepared_tile: PreparedTile): number {
+  public add(prepared_tilemap: Map<string,PreparedTile>): number {
+    let prepared_tile = prepared_tilemap.get("");
     var labeler = this.labelers.get(prepared_tile.z);
     if (labeler) {
-      return labeler.add(prepared_tile);
+      return labeler.add(prepared_tilemap);
     } else {
       labeler = new Labeler(
         prepared_tile.z,
@@ -446,7 +454,7 @@ export class Labelers {
         this.callback
       );
       this.labelers.set(prepared_tile.z, labeler);
-      return labeler.add(prepared_tile);
+      return labeler.add(prepared_tilemap);
     }
   }
 

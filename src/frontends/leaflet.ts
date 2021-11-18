@@ -157,7 +157,7 @@ const leafletLayer = (options: any): any => {
       if (element.key != key) return;
       if (this.lastRequestedZ !== coords.z) return;
 
-      let layout_time = await this.labelers.add(prepared_tile);
+      let layout_time = await this.labelers.add(prepared_tilemap); // need await ???
 
       if (element.key != key) return;
       if (this.lastRequestedZ !== coords.z) return;
