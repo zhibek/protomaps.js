@@ -146,32 +146,35 @@ export function painter(
 
   for (var prepared_tilemap of prepared_tilemaps) {
     let prepared_tile = prepared_tilemap.get("")!;
-    let po = prepared_tile.origin;
-    let ps = prepared_tile.scale;
-    let dim = prepared_tile.dim;
-    ctx.save();
-    if (clip) {
-      ctx.beginPath();
-      let minX = Math.max(po.x - origin.x, bbox.minX - origin.x) - 0.5;
-      let minY = Math.max(po.y - origin.y, bbox.minY - origin.y) - 0.5;
-      let maxX = Math.min(po.x - origin.x + dim, bbox.maxX - origin.x) + 0.5;
-      let maxY = Math.min(po.y - origin.y + dim, bbox.maxY - origin.y) + 0.5;
-      ctx.rect(minX, minY, maxX - minX, maxY - minY);
-      ctx.clip();
-    }
-    ctx.translate(po.x - origin.x, po.y - origin.y);
-    if (clip) {
-      // small fudge factor in static mode to fix seams
-      ctx.translate(dim / 2, dim / 2);
-      ctx.scale(1 + 1 / dim, 1 + 1 / dim);
-      ctx.translate(-dim / 2, -dim / 2);
-    }
+    // if (clip) {
+    //   ctx.beginPath();
+    //   let minX = Math.max(po.x - origin.x, bbox.minX - origin.x) - 0.5;
+    //   let minY = Math.max(po.y - origin.y, bbox.minY - origin.y) - 0.5;
+    //   let maxX = Math.min(po.x - origin.x + dim, bbox.maxX - origin.x) + 0.5;
+    //   let maxY = Math.min(po.y - origin.y + dim, bbox.maxY - origin.y) + 0.5;
+    //   ctx.rect(minX, minY, maxX - minX, maxY - minY);
+    //   ctx.clip();
+    // }
+    // if (clip) {
+    //   // small fudge factor in static mode to fix seams
+    //   ctx.translate(dim / 2, dim / 2);
+    //   ctx.scale(1 + 1 / dim, 1 + 1 / dim);
+    //   ctx.translate(-dim / 2, -dim / 2);
+    // }
     for (var rule of rules) {
       if (rule.minzoom && prepared_tile.z < rule.minzoom) continue;
       if (rule.maxzoom && prepared_tile.z > rule.maxzoom) continue;
-      var layer = prepared_tilemap.get(rule.dataSource || "").data.get(rule.dataLayer);
+      let prepared_tile = prepared_tilemap.get(rule.dataSource || "");
+      var layer = prepared_tile.data.get(rule.dataLayer);
       if (layer === undefined) continue;
       if (rule.symbolizer.before) rule.symbolizer.before(ctx, prepared_tile.z);
+
+      ctx.save();
+      let po = prepared_tile.origin;
+      let dim = prepared_tile.dim;
+      let ps = prepared_tile.scale;
+      ctx.translate(po.x - origin.x, po.y - origin.y);
+
 
       for (var feature of layer) {
         let geom = feature.geom;
@@ -189,9 +192,10 @@ export function painter(
           geom = transformGeom(geom, ps, new Point(0, 0));
         }
         rule.symbolizer.draw(ctx, geom, prepared_tile.z, feature);
+
       }
+      ctx.restore();
     }
-    ctx.restore();
   }
 
   if (clip) {
