@@ -19,11 +19,28 @@
         <div id="map"></div> 
         <script>
             let scroller = new featherzoom.Scroller();
-            const map = L.map('map',{scrollWheelZoom:false,featherzoom:true})
+            const map = L.map('map',{scrollWheelZoom:false,featherzoom:true,fadeAnimation:false})
             map.addHandler('featherzoom',featherzoom.leafletHandler(scroller))
             let hash = new L.Hash(map)
             if (!window.location.hash) map.setView(new L.LatLng(25.0412,121.5177),16)
-            var layer = protomaps.leafletLayer({url:'https://api.protomaps.com/tiles/v2/{z}/{x}/{y}.pbf?key=1003762824b9687f',debug:"green"})
+            let sources = {
+                "":{
+                    url:'https://api.protomaps.com/tiles/v2/{z}/{x}/{y}.pbf?key=1003762824b9687f',
+                    maxdatazoom:14,
+                    levelDiff:2
+                },
+                "fires":{
+                    url:'https://storage.googleapis.com/protomaps-test/FIRESTAT_YRLY.pmtiles',
+                    maxDataZoom:6,
+                    levelDiff:2
+                },
+                "zcta":{
+                    url:'https://storage.googleapis.com/protomaps-test/cb_2018_us_zcta510_500k_coalesced.pmtiles',
+                    maxDataZoom:6,
+                    levelDiff:2
+                }
+            }
+            var layer = protomaps.leafletLayer({sources:sources,debug:"green"})
             layer.addTo(map)
             layer.addInspector(map)
             // layer.removeInspector(map)

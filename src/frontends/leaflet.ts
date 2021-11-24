@@ -60,45 +60,30 @@ const leafletLayer = (options: any): any => {
       this.backgroundColor = options.backgroundColor;
       this.lastRequestedZ = undefined;
       this.xray = options.xray;
-
-      let source;
-      if (options.url.url) {
-        source = new PmtilesSource(options.url, true);
-      } else if (options.url.endsWith(".pmtiles")) {
-        source = new PmtilesSource(options.url, true);
-      } else {
-        source = new ZxySource(options.url, true);
-      }
-
-      let maxDataZoom = 14;
-      if (options.maxDataZoom) {
-        maxDataZoom = options.maxDataZoom;
-      }
-
-      this.levelDiff = options.levelDiff === undefined ? 2 : options.levelDiff;
-
       this.tasks = options.tasks || [];
-      let cache = new TileCache(source, (256 * 1) << this.levelDiff);
-      this.view = new View(cache, maxDataZoom, this.levelDiff);
 
-      let cache2 = new TileCache(
-        new PmtilesSource(
-          "https://storage.googleapis.com/protomaps-test/FIRESTAT_YRLY.pmtiles",
-          true
-        ),
-        (256 * 1) << this.levelDiff
-      );
-      this.view2 = new View(cache2, 6, this.levelDiff);
 
-      let cache3 = new TileCache(
-        new PmtilesSource(
-          "https://storage.googleapis.com/protomaps-test/cb_2018_us_zcta510_500k_coalesced.pmtiles",
-          true
-        ),
-        (256 * 1) << this.levelDiff
-      );
-      this.view3 = new View(cache3, 6, this.levelDiff);
+      let foo = o => {
+        let level_diff = o.levelDiff === undefined ? 2 : o.levelDiff;
+        let maxDataZoom = o.maxDataZoom || 14
+        let source;
+        if (o.url.url) {
+          source = new PmtilesSource(o.url, true);
+        } else if (o.url.endsWith(".pmtiles")) {
+          source = new PmtilesSource(o.url, true);
+        } else {
+          source = new ZxySource(o.url,true);
+        }
+        let cache = new TileCache(source, (256 * 1) << level_diff);
+        return new View(cache,maxDataZoom,level_diff);
+      }
 
+      this.sources = new Map();
+      if (options.sources) {
+        for (const [key,value] of Object.entries(options.sources)) {
+          this.sources.set(key,foo(value));
+        }
+      }
 
       this.debug = options.debug;
       let scratch = document.createElement("canvas").getContext("2d");
@@ -140,33 +125,30 @@ const leafletLayer = (options: any): any => {
       done = () => {}
     ) {
       this.lastRequestedZ = coords.z;
-      // try {
-      //   prepared_tile = await this.view.getDisplayTile(coords);
-      // } catch (e) {
-      //   if ((e as any).name == "AbortError") return;
-      //   else throw e;
-      // }
 
-      // try {
-      //   prepared_tile2 = await this.view2.getDisplayTile(coords);
-      // } catch(e) {
+      let promises = []
+      for (const [k,v] of this.sources) {
+        let promise = v.getDisplayTile(coords);
+        promises.push({key:k,promise:promise})
+      }
+      let x = await Promise.all(promises.map(o => {
+        return o.promise.then(
+          (v) => {
+            return { status: "fulfilled", value: v, key: o.key };
+          },
+          (error) => {
+            return { status: "rejected", reason: error, key: o.key };
+          }
+        );
+      }))
 
-      // }
-
-      let x = await Promise.all([this.view.getDisplayTile(coords),this.view2.getDisplayTile(coords),this.view3.getDisplayTile(coords)].map(reflect))
-
-      let prepared_tile = x[0].value;
-      let prepared_tile2 = x[1].value;
-      let prepared_tile3 = x[2].value;
-
-      // let prepared_tile = await this.view.getDisplayTile(coords);
-      // let prepared_tile2 = await this.view2.getDisplayTile(coords);
-      // let prepared_tile3 = await this.view3.getDisplayTile(coords);
-
-      let prepared_tilemap = new Map();
-      prepared_tilemap.set("",prepared_tile);
-      if (prepared_tile2) prepared_tilemap.set("fires",prepared_tile2);
-      if (prepared_tile3) prepared_tilemap.set("zcta",prepared_tile3);
+      let result = new Map();
+      for (const o of x) {
+        if (o.status === "fulfilled") {
+          result.set(o.key,o.value);
+        }
+      }
+      let prepared_tilemap = result;
 
       if (element.key != key) return;
       if (this.lastRequestedZ !== coords.z) return;
@@ -181,7 +163,7 @@ const leafletLayer = (options: any): any => {
       if (element.key != key) return;
       if (this.lastRequestedZ !== coords.z) return;
 
-      let label_data = this.labelers.getIndex(prepared_tile.z);
+      let label_data = this.labelers.getIndex(coords.z);
 
       if (!this._map) return; // the layer has been removed from the map
 
@@ -242,7 +224,7 @@ const leafletLayer = (options: any): any => {
       }
 
       if (this.debug) {
-        let data_tile = prepared_tile.data_tile;
+        let data_tile = prepared_tilemap.get("").data_tile;
         ctx.save();
         ctx.fillStyle = this.debug;
         ctx.font = "600 12px sans-serif";
