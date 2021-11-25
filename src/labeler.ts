@@ -85,11 +85,13 @@ export class Index {
   tree: RBush<any>;
   current: Map<string, Set<IndexedLabel>>;
   dim: number;
+  maxLabeledTiles: number;
 
-  constructor(dim: number) {
+  constructor(dim: number, maxLabeledTiles: number) {
     this.tree = new RBush();
     this.current = new Map();
     this.dim = dim;
+    this.maxLabeledTiles = maxLabeledTiles;
   }
 
   public has(tileKey: string): boolean {
@@ -183,11 +185,12 @@ export class Index {
       deduplicationDistance: label.deduplicationDistance,
     };
     let entry = this.current.get(tileKey);
-    if (entry) {
-      entry.add(indexed_label);
-    } else {
-      console.log("Consistency error 2");
+    if (!entry) {
+      let newSet = new Set<IndexedLabel>();
+      this.current.set(tileKey, newSet);
+      entry = newSet;
     }
+    entry.add(indexed_label);
 
     var wrapsLeft = false;
     var wrapsRight = false;
@@ -229,7 +232,34 @@ export class Index {
     }
   }
 
-  public prune(keyToRemove: string): void {
+  public pruneOrNoop(key_added: string) {
+    let added = key_added.split(":");
+    let max_key = undefined;
+    let max_dist = 0;
+    let keys_for_ds = 0;
+
+
+    for (var existing_key of this.current.keys()) {
+      keys_for_ds++;
+      let existing = existing_key.split(":");
+      if (existing[3] === added[3]) {
+        let dist = Math.sqrt(
+          Math.pow(+existing[0] - +added[0], 2) +
+            Math.pow(+existing[1] - +added[1], 2)
+        );
+        if (dist > max_dist) {
+          max_dist = dist;
+          max_key = existing_key;
+        }
+      }
+
+      if (max_key && keys_for_ds > this.maxLabeledTiles) {
+        this.pruneKey(max_key);
+      }
+    }
+  }
+
+  public pruneKey(keyToRemove: string): void {
     let indexed_labels = this.current.get(keyToRemove);
     if (!indexed_labels) return; // TODO: not that clean...
     let entries_to_delete = [];
@@ -269,7 +299,6 @@ export class Labeler {
   scratch: any;
   labelRules: LabelRule[];
   callback?: TileInvalidationCallback;
-  maxLabeledTiles: number;
 
   constructor(
     z: number,
@@ -278,18 +307,17 @@ export class Labeler {
     maxLabeledTiles: number,
     callback?: TileInvalidationCallback
   ) {
-    this.index = new Index((256 * 1) << z);
+    this.index = new Index((256 * 1) << z, maxLabeledTiles);
     this.z = z;
     this.scratch = scratch;
     this.labelRules = labelRules;
     this.callback = callback;
-    this.maxLabeledTiles = maxLabeledTiles;
   }
 
-  private layout(prepared_tilemap: map<string,PreparedTile>): number {
+  private layout(prepared_tilemap: Map<string,PreparedTile>): number {
     let start = performance.now();
 
-    let keys_adding = new Set();
+    let keys_adding = new Set<string>();
     // if it already exists... short circuit
     for (let [k,v] of prepared_tilemap) {
       let key = toIndex(v.data_tile) + ":" + k;
@@ -386,6 +414,11 @@ export class Labeler {
         }
       }
     }
+
+    for (var key of keys_adding) {
+      this.index.pruneOrNoop(key);
+    }
+
     if (tiles_invalidated.size > 0 && this.callback) {
       this.callback(tiles_invalidated);
     }
@@ -406,24 +439,6 @@ export class Labeler {
     }
   }
 
-  private pruneCache(added: PreparedTile) {
-    if (this.index.size() > this.maxLabeledTiles) {
-      let max_key = undefined;
-      let max_dist = 0;
-      for (let key of this.index.keys()) {
-        let split = key.split(":");
-        let dist = Math.sqrt(
-          Math.pow(+split[0] - added.data_tile.x, 2) +
-            Math.pow(+split[1] - added.data_tile.y, 2)
-        );
-        if (dist > max_dist) {
-          max_dist = dist;
-          max_key = key;
-        }
-      }
-      if (max_key) this.index.prune(max_key); // TODO cleanup
-    }
-  }
 
   public add(prepared_tilemap: Map<string,PreparedTile>): number {
     var all_added = true;
@@ -435,7 +450,6 @@ export class Labeler {
       return 0;
     } else {
       let timing = this.layout(prepared_tilemap);
-      // this.pruneCache(prepared_tile);
       return timing;
     }
   }
@@ -461,20 +475,19 @@ export class Labelers {
     this.callback = callback;
   }
 
-  public add(prepared_tilemap: Map<string,PreparedTile>): number {
-    let prepared_tile = prepared_tilemap.get("");
-    var labeler = this.labelers.get(prepared_tile.z);
+  public add(z:number, prepared_tilemap: Map<string,PreparedTile>): number {
+    var labeler = this.labelers.get(z);
     if (labeler) {
       return labeler.add(prepared_tilemap);
     } else {
       labeler = new Labeler(
-        prepared_tile.z,
+        z,
         this.scratch,
         this.labelRules,
         this.maxLabeledTiles,
         this.callback
       );
-      this.labelers.set(prepared_tile.z, labeler);
+      this.labelers.set(z, labeler);
       return labeler.add(prepared_tilemap);
     }
   }

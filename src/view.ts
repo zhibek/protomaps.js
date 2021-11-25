@@ -1,6 +1,6 @@
 // @ts-ignore
 import Point from "@mapbox/point-geometry";
-import { Zxy, TileCache, Feature, Bbox } from "./tilecache";
+import { Zxy, TileCache, Feature, Bbox, ZxySource, PmtilesSource } from "./tilecache";
 
 /*
  * PreparedTile
@@ -214,4 +214,31 @@ export class View {
     let brush_size = 16 / (1 << (rounded_zoom - data_zoom));
     return this.tileCache.queryFeatures(lng, lat, data_zoom, brush_size);
   }
+}
+
+export let toSources = (options:any) => {
+  let optionsToView = (o:any) => {
+    let level_diff = o.levelDiff === undefined ? 2 : o.levelDiff;
+    let maxDataZoom = o.maxDataZoom || 14
+    let source;
+    if (o.url.url) {
+      source = new PmtilesSource(o.url, true);
+    } else if (o.url.endsWith(".pmtiles")) {
+      source = new PmtilesSource(o.url, true);
+    } else {
+      source = new ZxySource(o.url,true);
+    }
+    let cache = new TileCache(source, (256 * 1) << level_diff);
+    return new View(cache,maxDataZoom,level_diff);
+  }
+
+  let sources = new Map<string,View>();
+  if (options.sources) {
+    for (const [key,value] of Object.entries(options.sources)) {
+      sources.set(key,optionsToView(value));
+    }
+  } else {
+    sources.set("",optionsToView(options));
+  }
+  return sources;
 }
