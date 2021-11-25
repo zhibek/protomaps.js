@@ -158,7 +158,7 @@ const leafletLayer = (options: any): any => {
       if (element.key != key) return;
       if (this.lastRequestedZ !== coords.z) return;
 
-      let layout_time = await this.labelers.add(prepared_tilemap); // need await ???
+      let layout_time = this.labelers.add(prepared_tilemap);
 
       if (element.key != key) return;
       if (this.lastRequestedZ !== coords.z) return;
@@ -324,7 +324,7 @@ const leafletLayer = (options: any): any => {
     }
 
     public queryFeatures(lng: number, lat: number) {
-      return this.view.queryFeatures(lng, lat, this._map.getZoom());
+      return this.sources.get("").queryFeatures(lng, lat, this._map.getZoom());
     }
 
     public inspect(layer: LeafletLayer) {

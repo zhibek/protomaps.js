@@ -163,6 +163,14 @@ export class Index {
     return false;
   }
 
+  public makeEntry(tileKey:string) {
+      if (this.current.get(tileKey)) {
+        console.log("consistency error 1");
+      }
+      let newSet = new Set<IndexedLabel>();
+      this.current.set(tileKey, newSet);
+  }
+
   // can put in multiple due to antimeridian wrapping
   public insert(label: Label, order: number, tileKey: string): void {
     let indexed_label = {
@@ -178,9 +186,7 @@ export class Index {
     if (entry) {
       entry.add(indexed_label);
     } else {
-      let newSet = new Set<IndexedLabel>();
-      newSet.add(indexed_label);
-      this.current.set(tileKey, newSet);
+      console.log("Consistency error 2");
     }
 
     var wrapsLeft = false;
@@ -283,6 +289,16 @@ export class Labeler {
   private layout(prepared_tilemap: map<string,PreparedTile>): number {
     let start = performance.now();
 
+    let keys_adding = new Set();
+    // if it already exists... short circuit
+    for (let [k,v] of prepared_tilemap) {
+      let key = toIndex(v.data_tile) + ":" + k;
+      if (!this.index.has(key)) {
+        this.index.makeEntry(key);
+        keys_adding.add(key);
+      }
+    }
+
     let tiles_invalidated = new Set<string>();
     for (let [order, rule] of this.labelRules.entries()) {
       if (rule.visible == false) continue;
@@ -290,9 +306,11 @@ export class Labeler {
       if (rule.maxzoom && this.z > rule.maxzoom) continue;
 
 
-      let pt = prepared_tilemap.get(rule.dataSource || "");
+      let dsName = rule.dataSource || "";
+      let pt = prepared_tilemap.get(dsName);
       if (!pt) continue;
-      let key = toIndex(pt.data_tile);
+      let key = toIndex(pt.data_tile) + ":" + dsName;
+      if (!keys_adding.has(key)) continue;
 
       let layer = pt.data.get(rule.dataLayer);
       if (layer === undefined) continue;
@@ -408,10 +426,12 @@ export class Labeler {
   }
 
   public add(prepared_tilemap: Map<string,PreparedTile>): number {
-    let prepared_tile = prepared_tilemap.get("");
-    let idx = toIndex(prepared_tile.data_tile);
+    var all_added = true;
+    for (let [k,v] of prepared_tilemap) {
+      if (!this.index.has(toIndex(v.data_tile) + ":" + k)) all_added = false;
+    }
 
-    if (this.index.has(idx)) {
+    if (all_added) {
       return 0;
     } else {
       let timing = this.layout(prepared_tilemap);
